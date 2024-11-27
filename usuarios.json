@@ -1,0 +1,14 @@
+{
+    "usuarios": [
+        {
+            "nome": "Tutu",
+            "senha": "senha",
+            "diretorio": "./data/files/Tutu"
+        },
+        {
+            "nome": "Camaroes",
+            "senha": "senha",
+            "diretorio": "./data/files/Camaroes"
+        }
+    ]
+}
