@@ -32,8 +32,10 @@ class ProcessManager:
             del self.processes[pid]
             return
 
-        execute_command(command, user)
-        print(f"Comando '{command}' executado com sucesso!")
+        try:
+            execute_command(command, user)
+        except Exception as e:
+            print(f"Erro ao executar o comando '{command}': {str(e)}")
 
         deallocate_memory(self.processes[pid]["allocated_memory"])
         del self.processes[pid]

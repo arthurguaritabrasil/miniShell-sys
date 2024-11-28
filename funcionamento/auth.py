@@ -1,29 +1,39 @@
 import os
-import json
 import getpass
 from funcionamento.utils import generate_salt, hash_password, verify_password
 
-USERS_FILE = './data/users.json'
+USERS_FILE = './data/users.txt'
 
 def load_users():
+    users = []
     if os.path.exists(USERS_FILE):
-        try:
-            with open(USERS_FILE, 'r') as f:
-                content = f.read().strip()
-                if not content:
-                    return []
-                data = json.loads(content)
-                return data.get("usuarios", [])
-        except json.JSONDecodeError:
-            print("Erro: O arquivo de usuários está corrompido.")
-            return []
-    else:
-        return []
+        with open(USERS_FILE, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue 
+                parts = line.split(':')
+                if len(parts) != 4:  
+                    print(f"Atenção: Linha malformada no arquivo de usuários: '{line}'")
+                    continue
+                nome, salt, hashed_password, diretorio = parts
+                users.append({
+                    "nome": nome,
+                    "senha": f"{salt}:{hashed_password}",
+                    "diretorio": diretorio,
+                    "diretorio_atual": diretorio
+                })
+    return users
 
 
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
-        json.dump({"usuarios": users}, f, indent=4)
+        for user in users:
+            nome = user["nome"]
+            salt, hashed_password = user["senha"].split(':')
+            diretorio = user["diretorio"]
+            f.write(f"{nome}:{salt}:{hashed_password}:{diretorio}\n")
+
 
 def login():
     print(f"PID do processo atual: {os.getpid()}")
@@ -34,7 +44,6 @@ def login():
     for user in users:
         if user["nome"] == nome:
             print(f"Verificando senha para {nome}...")
-
             if verify_password(senha, user["senha"]):
                 print(f"Login bem-sucedido! Bem-vindo, {nome}.")
 
@@ -50,16 +59,14 @@ def login():
     return None
 
 def create_user_if_none():
-    print(f"PID do processo atual: {os.getpid()}")
     nome = input("Digite o nome de usuário: ")
     senha = getpass.getpass("Digite a senha: ").strip()
     diretorio = f"./data/files/{nome}"
-    
     os.makedirs(diretorio, exist_ok=True)
     
     salt = generate_salt()
     hashed_password = hash_password(senha, salt)
-
+    
     user = {"nome": nome, "senha": f"{salt.hex()}:{hashed_password}", "diretorio": diretorio, "diretorio_atual": diretorio}
     
     users = load_users()
@@ -73,6 +80,7 @@ def create_or_login_user():
     
     if not users:
         print("Nenhum usuário encontrado. Criando um novo usuário...")
+        print(f"PID do processo atual: {os.getpid()}")
         return create_user_if_none()
     
     print("Já existem usuários registrados.")

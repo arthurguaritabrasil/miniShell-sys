@@ -21,6 +21,18 @@ def verify_password(password, stored_password):
 
     return new_hashed.hexdigest() == stored_hash 
 
-def validate_permissions(user, owner):
-    if user["username"] != owner:
-        raise PermissionError("Permissão negada.")
+def validate_permissions(user, metadata_path):
+    if not os.path.exists(metadata_path):
+        raise PermissionError("Erro: Metadados não encontrados. Permissão negada.")
+    
+    with open(metadata_path, 'r') as meta_file:
+        metadata = meta_file.readlines()
+    
+    dono = None
+    for line in metadata:
+        if line.startswith("Dono:"):
+            dono = line.split(":")[1].strip()
+            break
+    
+    if dono != user["nome"]:
+        raise PermissionError("Erro: Você não tem permissão para realizar esta ação.")
