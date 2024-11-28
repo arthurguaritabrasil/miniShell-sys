@@ -32,8 +32,8 @@ def execute_command(command, user):
         if "arquivo" in parts:
             return delete_file(parts[2], user)
         elif "diretorio" in parts:
-            force = "--force" in parts
-            return delete_directory(directory=parts[2], user=user)
+            force = "--force" in parts  # Verifica se '--force' está no comando
+            return delete_directory(directory=parts[2], user=user, force=force)
 
     elif cmd == "exit" or cmd == "sair":
         return exit_shell()
@@ -205,6 +205,12 @@ def delete_directory(directory, user, force=False):
     if not os.path.isdir(target_directory):
         print(f"Erro: '{directory}' não é um diretório válido.")
         return
+
+    # Se não for 'force', verifica se o diretório está vazio
+    if not force:
+        if os.listdir(target_directory):  # Se o diretório não estiver vazio
+            print(f"Erro: O diretório '{directory}' não está vazio. Use --force para excluir.")
+            return
 
     # Verifica permissões do usuário para excluir o diretório
     if not force:
