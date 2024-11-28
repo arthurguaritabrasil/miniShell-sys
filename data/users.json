@@ -5,6 +5,12 @@
             "senha": "701d9975dab3555ba63a75294fa0e519:3625249b2cffa2c941abc8c368bb28cf27ba4f39cf5c1ca99099c9ce789e4cfcb41f05e52fdbfa71d8c1fc5ac6880d3541c034b087275e3ca0b22ae3ec7e575a",
             "diretorio": "./data/files/Tutu",
             "diretorio_atual": "./data/files/Tutu"
+        },
+        {
+            "nome": "Sande",
+            "senha": "9da88e33d69780449374843011ac1545:0b0c0bcbc19b50bed92bb25c130c8f83300b9ca051e188c34b647fe42d8cbbf669925583ea8d6038a98590be3505c34dda3fa5e91dae1928f735dfe46ec65310",
+            "diretorio": "./data/files/Sande",
+            "diretorio_atual": "./data/files/Sande"
         }
     ]
 }
