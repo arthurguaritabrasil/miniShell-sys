@@ -14,7 +14,7 @@ def main():
 
     while True:
         # Recebe o comando do usuário
-        command = input("MiniSO> ").strip()
+        command = input("\nMiniSO> ").strip()
         print("")
         
         if command.lower() == "sair":

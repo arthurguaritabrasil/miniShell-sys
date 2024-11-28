@@ -1,1 +1,16 @@
-[{"username": "Tutu", "password": "523b7abc30a4c5704c5d1fa538dfe3fb:62af7737072a98aec2a66799dcb9e5d191ee78b9ea08786923793a30bd22061881cad91cc9232c7b4e00ed1acf4955e31d76bc3681285bf384a821b6370ee653"}]
+{
+    "usuarios": [
+        {
+            "nome": "Tutu",
+            "senha": "b4c61cc048507538e1598f55dbbb795c:cc987d93106570c193995e0556449f4b0050efb854ddc72488ab6aea9095e927bd543ffe2227920668efa8d45310f166645a6b20bec6fe55eb71182950b6bb8a",
+            "diretorio": "./data/files/Tutu",
+            "diretorio_atual": "./data/files/Tutu"
+        },
+        {
+            "nome": "Sande",
+            "senha": "df727bf2930de4b3afdae68e2934b700:5b671b98ff6cd8fe5473b71f12a625eb4cc96777a87bf3785733457586b91a3160e7cdf2432ac1765bbd69ddd51007f5d27ab8518acee974aa6d3900bff859c3",
+            "diretorio": "./data/files/Sande",
+            "diretorio_atual": "./data/files/Sande"
+        }
+    ]
+}

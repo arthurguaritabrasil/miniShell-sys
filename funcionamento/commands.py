@@ -1,6 +1,7 @@
 import os
 import shutil
 from funcionamento.utils import validate_permissions
+import json
 
 BASE_DIR = "./data/files"  # Diretório base para todas as operações de arquivos
 
@@ -32,7 +33,7 @@ def execute_command(command, user):
             return delete_file(parts[2], user)
         elif "diretorio" in parts:
             force = "--force" in parts
-            return delete_directory(parts[2], user, force)
+            return delete_directory(directory=parts[2], user=user)
 
     elif cmd == "exit" or cmd == "sair":
         return exit_shell()
@@ -71,9 +72,107 @@ def list_directory(directory, user):
 
 def change_directory(directory, user):
     """Altera o diretório de trabalho do usuário"""
-    # Obtém o caminho completo para o diretório desejado dentro do diretório do usuário
-    user_directory = user["diretorio"]
-    target_directory = os.path.join(user_directory, directory).replace("\\", "/")
+    # Obtém o diretório atual do usuário
+    current_directory = user["diretorio_atual"]
+
+    # Se o diretório for '..', navega para o diretório pai
+    if directory == "..":
+        # Obtém o diretório pai
+        target_directory = os.path.dirname(current_directory)
+        if not target_directory:  # Verifica se já está no diretório raiz
+            print(f"Erro: Você já está no diretório raiz.")
+            return
+    else:
+        # Concatena o caminho do diretório desejado
+        target_directory = os.path.join(current_directory, directory).replace("\\", "/")
+    
+    # Verifica se o diretório existe
+    if not os.path.exists(target_directory):
+        print(f"Erro: O diretório '{directory}' não existe.")
+        return
+
+    # Verifica se é um diretório válido
+    if not os.path.isdir(target_directory):
+        print(f"Erro: '{directory}' não é um diretório válido.")
+        return
+
+    # Atualiza o diretório atual do usuário
+    user["diretorio_atual"] = target_directory
+    print(f"Diretório alterado para: {target_directory}")
+
+def create_file(file_name, user):
+    """Cria um arquivo e associa o dono a ele."""
+    # Diretório do usuário
+    user_directory = user["diretorio_atual"]
+    
+    # Caminho do novo arquivo
+    file_path = os.path.join(user_directory, file_name)
+    
+    # Cria o arquivo
+    try:
+        with open(file_path, 'w') as f:
+            f.write('')  # Cria um arquivo vazio
+        print(f"Arquivo '{file_name}' criado com sucesso!")
+
+        # Salva o dono do arquivo
+        file_metadata = {"dono": user["nome"]}
+        file_metadata_path = file_path + '.meta'  # Armazenamos as metainformações em um arquivo '.meta'
+        with open(file_metadata_path, 'w') as meta_file:
+            json.dump(file_metadata, meta_file)
+
+    except Exception as e:
+        print(f"Erro ao criar o arquivo: {e}")
+
+def create_directory(directory, user):
+    """Cria um novo diretório e gera o arquivo de metadados com o dono."""
+    user_directory = user["diretorio_atual"]
+    target_directory = os.path.join(user_directory, directory)
+    metadata_path = target_directory + ".meta"
+
+    # Verifica se o diretório já existe
+    if os.path.exists(target_directory):
+        print(f"Erro: O diretório '{directory}' já existe.")
+        return
+
+    try:
+        # Cria o diretório
+        os.makedirs(target_directory)
+
+        # Cria o arquivo de metadados
+        metadata = {
+            "dono": user["nome"],  # O nome do usuário que criou o diretório
+            "permissoes": "rw"  # Permissões de leitura e escrita, por exemplo
+        }
+
+        # Grava os metadados no arquivo
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f)
+
+        print(f"Diretório '{directory}' criado com sucesso!")
+    
+    except Exception as e:
+        print(f"Erro ao criar o diretório: {e}")
+
+def delete_file(file_path, user):
+    # Gera o caminho absoluto do arquivo
+    absolute_file_path = os.path.join(user["diretorio_atual"], file_path)
+    print(f"Diretório atual do usuário: {user['diretorio_atual']}")
+    print(f"Caminho absoluto do arquivo a ser deletado: {absolute_file_path}")
+    
+    if absolute_file_path.startswith(user["diretorio_atual"]):
+        try:
+            os.remove(absolute_file_path)
+            print(f"Arquivo '{absolute_file_path}' excluído com sucesso!")
+        except FileNotFoundError:
+            print(f"Erro: Arquivo '{absolute_file_path}' não encontrado.")
+    else:
+        print("Erro: O arquivo não está dentro do diretório do usuário.")
+
+def delete_directory(directory, user, force=False):
+    """Remove um diretório, verificando permissões e podendo forçar a remoção."""
+    user_directory = user["diretorio_atual"]
+    target_directory = os.path.join(user_directory, directory)
+    metadata_path = target_directory + ".meta"  # Caminho do arquivo de metadados
 
     # Verifica se o diretório existe
     if not os.path.exists(target_directory):
@@ -85,77 +184,36 @@ def change_directory(directory, user):
         print(f"Erro: '{directory}' não é um diretório válido.")
         return
 
-    # Atualiza o diretório de trabalho do usuário
-    user["diretorio_atual"] = target_directory
-    print(f"Diretório alterado para: {target_directory}")
+    # Verifica se o usuário tem permissão para excluir o diretório
+    if not force:
+        if os.path.exists(metadata_path):
+            try:
+                # Verifica se o arquivo de metadados não está vazio
+                with open(metadata_path, 'r') as f:
+                    content = f.read().strip()  # Remove espaços em branco
+                    if not content:
+                        print(f"Erro: O arquivo de metadados '{metadata_path}' está vazio.")
+                        return
+                    
+                    metadata = json.loads(content)
+                    
+                    # Verifica se o dono do diretório é o usuário
+                    if metadata.get("dono") != user["nome"]:
+                        print("Erro: Você não tem permissão para excluir este diretório.")
+                        return
 
-def create_file(filepath, user):
-    ensure_base_directory()  # Garantir que o diretório base existe
+            except json.JSONDecodeError:
+                print(f"Erro: O arquivo de metadados '{metadata_path}' está corrompido.")
+                return
 
-    # Garante que o arquivo está dentro do diretório do usuário
-    filepath = os.path.join(user["diretorio"], filepath)
-    directory = os.path.dirname(filepath)
-
-    if not os.path.exists(directory):
-        os.makedirs(directory)  # Cria o diretório se não existir
-    
-    with open(filepath, "w") as f:
-        f.write("Conteúdo aleatório")
-    
-    print(f"Arquivo '{filepath}' criado com sucesso!")
-
-def create_directory(directory, user):
-    """Cria um diretório dentro do diretório específico do usuário"""
-    if not isinstance(user, dict):
-        print("Erro: Usuário não encontrado.")
-        return
-
-    # Verifica se o nome do diretório está correto
-    if not directory:
-        print("Erro: Nome do diretório não pode ser vazio.")
-        return
-
-    # Cria o caminho completo do diretório, dentro do diretório do usuário
-    user_directory = user["diretorio"]
-    directory_path = os.path.join(user_directory, directory)
-    
-    # Cria o diretório caso não exista
+    # Exclui o diretório
     try:
-        os.makedirs(directory_path, exist_ok=True)
-        print(f"Diretório '{directory}' criado com sucesso em {directory_path}!")
+        shutil.rmtree(target_directory)  # Apaga o diretório e seu conteúdo
+        if os.path.exists(metadata_path):
+            os.remove(metadata_path)  # Remove o arquivo de metadados associado
+        print(f"Diretório '{directory}' removido com sucesso!")
     except Exception as e:
-        print(f"Erro ao criar diretório: {e}")
-
-
-def delete_file(filepath, user):
-    # Garante que o arquivo está dentro do diretório do usuário
-    filepath = os.path.join(user["diretorio"], filepath)
-    
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Arquivo '{filepath}' não encontrado.")
-    
-    os.remove(filepath)
-    print(f"Arquivo '{filepath}' apagado com sucesso!")
-
-def delete_directory(directory, user, force=False):
-    # Garante que o diretório está dentro do diretório do usuário
-    directory_path = os.path.join(user["diretorio"], directory)
-    
-    if not os.path.exists(directory_path):
-        raise FileNotFoundError(f"Diretório '{directory_path}' não encontrado.")
-
-    # Verifica se o diretório está vazio
-    if len(os.listdir(directory_path)) > 0:
-        print(f"Não é possível apagar o diretório '{directory_path}' porque ele não está vazio.")
-        return
-    
-    # Se não for necessário forçar, usa os.rmdir() para apagar apenas diretórios vazios
-    if force:
-        shutil.rmtree(directory_path)
-        print(f"Diretório '{directory_path}' apagado com força!")
-    else:
-        os.rmdir(directory_path)
-        print(f"Diretório '{directory_path}' apagado com sucesso!")
+        print(f"Erro ao remover o diretório: {e}")
 
 def clear_screen():
     """Limpa a tela do terminal"""

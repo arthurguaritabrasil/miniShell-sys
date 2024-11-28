@@ -1,20 +1,27 @@
 import os
 import json
 import getpass
+from funcionamento.utils import generate_salt, hash_password, verify_password
 
-USERS_FILE = 'usuarios.json'
+USERS_FILE = './data/users.json'
 
 def load_users():
     """Carrega os dados dos usuários do arquivo JSON"""
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, 'r') as f:
-                data = json.load(f)
-            return data.get("usuarios", [])  # Retorna uma lista vazia se 'usuarios' não existir
-        except (json.JSONDecodeError, ValueError):  # Captura erros de leitura JSON ou se estiver vazio
-            print("Erro ao carregar os dados de usuários. O arquivo pode estar corrompido ou vazio.")
-            return []  # Retorna uma lista vazia em caso de erro
-    return []
+                content = f.read().strip()  # Lê o conteúdo do arquivo
+                if not content:  # Se o conteúdo estiver vazio
+                    return []  # Retorna uma lista vazia
+                data = json.loads(content)  # Caso contrário, tenta fazer o parsing do JSON
+            # Verifica se 'usuarios' existe e se é uma lista, senão retorna uma lista vazia
+            return data.get("usuarios", [])
+        except json.JSONDecodeError as e:
+            print(f"Erro ao carregar os dados de usuários: {e}")
+            return []  # Retorna uma lista vazia se o arquivo JSON estiver corrompido
+    else:
+        # Se o arquivo não existir, retorna uma lista vazia
+        return []
 
 def save_users(users):
     """Salva os dados atualizados dos usuários no arquivo JSON"""
@@ -23,20 +30,27 @@ def save_users(users):
 
 def login():
     """Função de login"""
-    users = load_users()  # Supondo que load_users carrega uma lista de dicionários
+    users = load_users()  # Carrega os usuários
     nome = input("Digite o nome de usuário: ")
     senha = getpass.getpass("Digite a senha: ").strip()
 
     # Verifica se as credenciais são válidas
     for user in users:
-        if user["nome"] == nome and user["senha"] == senha:
-            print(f"Login bem-sucedido! Bem-vindo, {nome}.")
-            
-            # Adiciona o diretório atual, se não existir
-            if "diretorio_atual" not in user:
-                user["diretorio_atual"] = user["diretorio"]  # Inicializa com o diretório do usuário
+        if user["nome"] == nome:
+            print(f"Verificando senha para {nome}...")
 
-            return user  # Retorna o dicionário de usuário, não apenas o nome
+            # Verificação de senha utilizando a função verify_password
+            if verify_password(senha, user["senha"]):
+                print(f"Login bem-sucedido! Bem-vindo, {nome}.")
+
+                # Se 'diretorio_atual' não estiver presente, cria com o valor de 'diretorio'
+                if "diretorio_atual" not in user:
+                    user["diretorio_atual"] = user["diretorio"]  # Adiciona a chave
+
+                return user  # Retorna o dicionário de usuário, não apenas o nome
+            else:
+                print("Senha incorreta.")
+                return None
     
     print("Credenciais inválidas.")
     return None
@@ -50,8 +64,14 @@ def create_user_if_none():
     # Cria o diretório base para o novo usuário
     os.makedirs(diretorio, exist_ok=True)
     
+    # Gerar salt e hash da senha
+    salt = generate_salt()
+    hashed_password = hash_password(senha, salt)
+    
+    # Criar o novo usuário com a chave 'diretorio_atual'
+    user = {"nome": nome, "senha": f"{salt.hex()}:{hashed_password}", "diretorio": diretorio, "diretorio_atual": diretorio}
+    
     users = load_users()
-    user = {"nome": nome, "senha": senha, "diretorio": diretorio, "diretorio_atual": diretorio}  # Inclui o 'diretorio_atual'
     users.append(user)
     save_users(users)
     print(f"Usuário {nome} criado com sucesso!")
