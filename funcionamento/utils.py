@@ -32,9 +32,7 @@ def validate_permissions(user, metadata_path):
     for line in metadata:
         if line.startswith("Proprietario:"):
             dono = line.split(":")[1].strip()
-            print(f"Dono extraído dos metadados: {dono}")  # Debug
             break
     
     if dono != user["nome"]:
-        print(f"Dono extraído dos metadados: {dono}") 
         raise PermissionError("Erro: Você não tem permissão para realizar esta ação.")
