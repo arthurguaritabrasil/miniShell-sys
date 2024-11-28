@@ -1,3 +1,10 @@
+"""
+
+Arthur Guaritá Brasil - 22303654
+Link GitHub: https://github.com/arthurguaritabrasil/miniShell-sys
+
+"""
+
 from funcionamento.auth import create_or_login_user
 from funcionamento.process_manager import ProcessManager
 
