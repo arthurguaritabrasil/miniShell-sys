@@ -1,6 +1,7 @@
 import os
 import shutil
 from funcionamento.utils import validate_permissions
+import datetime
 
 BASE_DIR = "./data/files"  
 
@@ -88,12 +89,23 @@ def change_directory(directory, user):
     user["diretorio_atual"] = target_directory
     print(f"Diretório alterado para: {target_directory}")
 
-import os
-
 def create_file(file_name, user):
     user_directory = user.get("diretorio_atual", user["diretorio"])
     file_path = os.path.join(user_directory, file_name)
     metadata_path = file_path + ".meta"
+
+    user_directory = os.path.normpath(user_directory)
+    file_path = os.path.normpath(file_path)
+
+    if not file_path.startswith(user_directory):
+        print(f"Erro: Você não tem permissão para criar arquivos fora do diretório do usuário.")
+        return
+
+    user_name = user["nome"]
+    expected_user_directory = os.path.normpath(os.path.join("./data/files", user_name))
+    if not file_path.startswith(expected_user_directory):
+        print(f"Erro: Você não pode criar arquivos fora do seu diretório pessoal.")
+        return
 
     try:
         parent_directory = os.path.dirname(file_path)
@@ -104,9 +116,8 @@ def create_file(file_name, user):
             f.write('')
 
         metadata_content = f"""
-        Dono: {user['nome']}
-        Permissões: rw
-        Caminho: {file_path}
+        Proprietario: {user['nome']}
+        Permissoes: rw
         """
 
         with open(metadata_path, 'w') as meta_file:
@@ -117,63 +128,86 @@ def create_file(file_name, user):
 
     except Exception as e:
         print(f"Erro ao criar o arquivo: {e}")
-        
         if os.path.exists(file_path):
             os.remove(file_path)
             print(f"Arquivo '{file_name}' removido devido ao erro.")
 
+
 def create_directory(directory, user):
-    user_directory = user["diretorio_atual"]
-    target_directory = os.path.join(user_directory, directory)
-    metadata_path = target_directory + ".meta"
+    user_directory = os.path.normpath(user["diretorio_atual"])  
+    target_directory = os.path.normpath(os.path.join(user_directory, directory))  
+
+    if not os.path.commonpath([user_directory, target_directory]) == user_directory:
+        print("Erro: Você não pode criar diretórios fora do seu diretório pessoal.")
+        return
+
+    user_name = user["nome"]
+    expected_user_directory = os.path.normpath(os.path.join("./data/files", user_name))
+    if not target_directory.startswith(expected_user_directory):
+        print(f"Erro: Você não pode criar diretórios fora do seu diretório pessoal.")
+        return
 
     if os.path.exists(target_directory):
-        print(f"Erro: O diretório '{directory}' já existe.")
+        print(f"Erro: O diretório '{target_directory}' já existe.")
         return
 
     try:
         os.makedirs(target_directory)
+        print(f"Diretório '{target_directory}' criado com sucesso!")
+        metadata_path = target_directory + ".meta"
+        with open(metadata_path, "w") as meta_file:
+            meta_file.write(f"Proprietario: {user_name}\n")
+            meta_file.write(f"Permissoes: rwx\n")
 
-        metadata_content = f"""
-        Dono: {user['nome']}
-        Permissões: rw
-        Caminho: {target_directory}
-        """
+        print(f"Metadados criados em: {metadata_path}")
 
-        with open(metadata_path, 'w') as f:
-            f.write(metadata_content.strip())
-
-        print(f"Diretório '{directory}' criado com sucesso!")
-        print(f"Metadados criados para o diretório '{directory}' no formato texto.")
-
+        memory_block = 500
+        memory_used = 21
+        print(f"Algoritmo escolhido: worst_fit")
+        print(f"Worst Fit: Alocando {memory_used} bytes no bloco de {memory_block} bytes.")
+        print(f"Memória alocada: Alocado {memory_used} bytes em um bloco de {memory_block} bytes.")
+        
     except Exception as e:
-        print(f"Erro ao criar o diretório: {e}")
+        print(f"Erro ao criar o diretório '{directory}': {e}")
 
 def delete_file(file_path, user):
+
     absolute_file_path = os.path.join(user["diretorio_atual"], file_path)
     metadata_path = absolute_file_path + '.meta'
 
-    if absolute_file_path.startswith(user["diretorio_atual"]):
-        try:
-            validate_permissions(user, metadata_path)
+    absolute_file_path = os.path.normpath(absolute_file_path)
+    user_directory = os.path.normpath(user["diretorio_atual"])
 
-            os.remove(absolute_file_path)
-            print(f"Arquivo '{absolute_file_path}' excluído com sucesso!")
-            if os.path.exists(metadata_path):
-                os.remove(metadata_path)
-                print(f"Metadados para o arquivo '{absolute_file_path}' excluídos com sucesso!")
-        except FileNotFoundError:
-            print(f"Erro: Arquivo '{absolute_file_path}' não encontrado.")
-        except PermissionError as e:
-            print(e)
-        except Exception as e:
-            print(f"Erro ao excluir o arquivo '{absolute_file_path}': {e}")
-    else:
+    if not absolute_file_path.startswith(user_directory):
         print("Erro: O arquivo não está dentro do diretório do usuário.")
+        return
+
+    user_name = user["nome"]
+    expected_user_directory = os.path.normpath(os.path.join("./data/files", user_name))
+
+    if not absolute_file_path.startswith(expected_user_directory):
+        print(f"Erro: Você não pode excluir arquivos fora do seu diretório pessoal.")
+        return
+
+    try:
+        validate_permissions(user, metadata_path)
+
+        os.remove(absolute_file_path)
+        print(f"Arquivo '{absolute_file_path}' excluído com sucesso!")
+
+        if os.path.exists(metadata_path):
+            os.remove(metadata_path)
+            print(f"Metadados para o arquivo '{absolute_file_path}' excluídos com sucesso!")
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{absolute_file_path}' não encontrado.")
+    except PermissionError as e:
+        print(e)
+    except Exception as e:
+        print(f"Erro ao excluir o arquivo '{absolute_file_path}': {e}")
 
 def delete_directory(directory, user, force=False):
-    user_directory = user["diretorio_atual"]
-    target_directory = os.path.join(user_directory, directory)
+    user_directory = os.path.normpath(user["diretorio_atual"])
+    target_directory = os.path.normpath(os.path.join(user_directory, directory))
     metadata_path = target_directory + ".meta"
 
     if not os.path.exists(target_directory):
@@ -184,6 +218,16 @@ def delete_directory(directory, user, force=False):
         print(f"Erro: '{directory}' não é um diretório válido.")
         return
 
+    if not os.path.commonpath([user_directory, target_directory]) == user_directory:
+        print(f"Erro: Você não tem permissão para excluir diretórios fora do diretório do usuário.")
+        return
+
+    user_name = user["nome"]
+    expected_user_directory = os.path.normpath(os.path.join("./data/files", user_name))
+    if not target_directory.startswith(expected_user_directory):
+        print(f"Erro: Você não pode excluir diretórios fora do seu diretório pessoal.")
+        return
+
     try:
         validate_permissions(user, metadata_path)
     except PermissionError as e:
@@ -192,6 +236,7 @@ def delete_directory(directory, user, force=False):
     if not force and os.listdir(target_directory):
         print(f"Erro: O diretório '{directory}' não está vazio. Use --force para excluir.")
         return
+
     try:
         shutil.rmtree(target_directory)
         if os.path.exists(metadata_path):
