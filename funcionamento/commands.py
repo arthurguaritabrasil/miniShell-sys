@@ -101,27 +101,41 @@ def change_directory(directory, user):
     print(f"Diretório alterado para: {target_directory}")
 
 def create_file(file_name, user):
-    """Cria um arquivo e associa o dono a ele."""
-    # Diretório do usuário
-    user_directory = user["diretorio_atual"]
+    """
+    Cria um arquivo e associa o dono a ele.
+    """
+    # Diretório atual do usuário
+    user_directory = user.get("diretorio_atual", user["diretorio"])
     
-    # Caminho do novo arquivo
+    # Caminho completo para o novo arquivo
     file_path = os.path.join(user_directory, file_name)
-    
-    # Cria o arquivo
+    metadata_path = file_path + '.meta'  # Caminho do arquivo de metadados
+
     try:
+        # Obtém o diretório pai do arquivo
+        parent_directory = os.path.dirname(file_path)
+        
+        # Garante que o diretório pai existe
+        os.makedirs(parent_directory, exist_ok=True)
+
+        # Criação do arquivo vazio
         with open(file_path, 'w') as f:
             f.write('')  # Cria um arquivo vazio
-        print(f"Arquivo '{file_name}' criado com sucesso!")
+        print(f"Arquivo '{file_name}' criado com sucesso no caminho: {file_path}")
 
-        # Salva o dono do arquivo
-        file_metadata = {"dono": user["nome"]}
-        file_metadata_path = file_path + '.meta'  # Armazenamos as metainformações em um arquivo '.meta'
-        with open(file_metadata_path, 'w') as meta_file:
+        # Criação do arquivo de metadados
+        file_metadata = {
+            "dono": user["nome"],  # Nome do usuário que criou o arquivo
+            "permissoes": "rw",  # Permissões padrão para leitura e escrita
+        }
+        with open(metadata_path, 'w') as meta_file:
             json.dump(file_metadata, meta_file)
+        print(f"Metadados criados para o arquivo '{file_name}' em: {metadata_path}")
 
+    except PermissionError as e:
+        print(f"Erro: Permissões insuficientes para criar o arquivo '{file_name}'.")
     except Exception as e:
-        print(f"Erro ao criar o arquivo: {e}")
+        print(f"Erro ao criar o arquivo '{file_name}': {e}")
 
 def create_directory(directory, user):
     """Cria um novo diretório e gera o arquivo de metadados com o dono."""
@@ -154,22 +168,30 @@ def create_directory(directory, user):
         print(f"Erro ao criar o diretório: {e}")
 
 def delete_file(file_path, user):
+    """Remove um arquivo e seus metadados."""
     # Gera o caminho absoluto do arquivo
     absolute_file_path = os.path.join(user["diretorio_atual"], file_path)
-    print(f"Diretório atual do usuário: {user['diretorio_atual']}")
-    print(f"Caminho absoluto do arquivo a ser deletado: {absolute_file_path}")
-    
+    metadata_path = absolute_file_path + '.meta'  # Caminho do arquivo de metadados
+
     if absolute_file_path.startswith(user["diretorio_atual"]):
         try:
+            # Remove o arquivo
             os.remove(absolute_file_path)
             print(f"Arquivo '{absolute_file_path}' excluído com sucesso!")
+
+            # Remove o arquivo de metadados, se existir
+            if os.path.exists(metadata_path):
+                os.remove(metadata_path)
+                print(f"Metadados para o arquivo '{absolute_file_path}' excluídos com sucesso!")
         except FileNotFoundError:
             print(f"Erro: Arquivo '{absolute_file_path}' não encontrado.")
+        except Exception as e:
+            print(f"Erro ao excluir o arquivo '{absolute_file_path}': {e}")
     else:
         print("Erro: O arquivo não está dentro do diretório do usuário.")
 
 def delete_directory(directory, user, force=False):
-    """Remove um diretório, verificando permissões e podendo forçar a remoção."""
+    """Remove um diretório e seus metadados associados."""
     user_directory = user["diretorio_atual"]
     target_directory = os.path.join(user_directory, directory)
     metadata_path = target_directory + ".meta"  # Caminho do arquivo de metadados
@@ -184,36 +206,28 @@ def delete_directory(directory, user, force=False):
         print(f"Erro: '{directory}' não é um diretório válido.")
         return
 
-    # Verifica se o usuário tem permissão para excluir o diretório
+    # Verifica permissões do usuário para excluir o diretório
     if not force:
         if os.path.exists(metadata_path):
             try:
-                # Verifica se o arquivo de metadados não está vazio
                 with open(metadata_path, 'r') as f:
-                    content = f.read().strip()  # Remove espaços em branco
-                    if not content:
-                        print(f"Erro: O arquivo de metadados '{metadata_path}' está vazio.")
-                        return
-                    
-                    metadata = json.loads(content)
-                    
-                    # Verifica se o dono do diretório é o usuário
+                    metadata = json.load(f)
+                    # Verifica se o usuário é o dono do diretório
                     if metadata.get("dono") != user["nome"]:
                         print("Erro: Você não tem permissão para excluir este diretório.")
                         return
-
             except json.JSONDecodeError:
                 print(f"Erro: O arquivo de metadados '{metadata_path}' está corrompido.")
                 return
 
-    # Exclui o diretório
+    # Exclui o diretório e os metadados associados
     try:
         shutil.rmtree(target_directory)  # Apaga o diretório e seu conteúdo
         if os.path.exists(metadata_path):
             os.remove(metadata_path)  # Remove o arquivo de metadados associado
-        print(f"Diretório '{directory}' removido com sucesso!")
+        print(f"Diretório '{directory}' e seus metadados removidos com sucesso!")
     except Exception as e:
-        print(f"Erro ao remover o diretório: {e}")
+        print(f"Erro ao remover o diretório '{directory}': {e}")
 
 def clear_screen():
     """Limpa a tela do terminal"""

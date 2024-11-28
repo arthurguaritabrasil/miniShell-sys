@@ -6,22 +6,21 @@ from funcionamento.utils import generate_salt, hash_password, verify_password
 USERS_FILE = './data/users.json'
 
 def load_users():
-    """Carrega os dados dos usuários do arquivo JSON"""
+    """Carrega os dados dos usuários do arquivo JSON."""
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, 'r') as f:
-                content = f.read().strip()  # Lê o conteúdo do arquivo
-                if not content:  # Se o conteúdo estiver vazio
-                    return []  # Retorna uma lista vazia
-                data = json.loads(content)  # Caso contrário, tenta fazer o parsing do JSON
-            # Verifica se 'usuarios' existe e se é uma lista, senão retorna uma lista vazia
-            return data.get("usuarios", [])
-        except json.JSONDecodeError as e:
-            print(f"Erro ao carregar os dados de usuários: {e}")
-            return []  # Retorna uma lista vazia se o arquivo JSON estiver corrompido
+                content = f.read().strip()
+                if not content:  # Arquivo vazio
+                    return []
+                data = json.loads(content)
+                return data.get("usuarios", [])  # Retorna lista de usuários ou lista vazia
+        except json.JSONDecodeError:
+            print("Erro: O arquivo de usuários está corrompido.")
+            return []  # Retorna vazio se o JSON estiver corrompido
     else:
-        # Se o arquivo não existir, retorna uma lista vazia
-        return []
+        return []  # Arquivo não existe
+
 
 def save_users(users):
     """Salva os dados atualizados dos usuários no arquivo JSON"""
@@ -30,6 +29,7 @@ def save_users(users):
 
 def login():
     """Função de login"""
+    print(f"PID do processo atual: {os.getpid()}")
     users = load_users()  # Carrega os usuários
     nome = input("Digite o nome de usuário: ")
     senha = getpass.getpass("Digite a senha: ").strip()
@@ -57,6 +57,7 @@ def login():
 
 def create_user_if_none():
     """Cria um novo usuário se nenhum for encontrado"""
+    print(f"PID do processo atual: {os.getpid()}")
     nome = input("Digite o nome de usuário: ")
     senha = getpass.getpass("Digite a senha: ").strip()
     diretorio = f"./data/files/{nome}"  # Diretório do usuário
@@ -78,13 +79,15 @@ def create_user_if_none():
     return user  # Retorna o dicionário do novo usuário
 
 def create_or_login_user():
-    """Chama o login ou cria um novo usuário caso não exista nenhum"""
+    """Inicia o sistema verificando a existência de usuários no JSON."""
     users = load_users()
     
-    if not users:  # Caso não exista nenhum usuário
+    # Se o arquivo está vazio ou sem usuários
+    if not users:
         print("Nenhum usuário encontrado. Criando um novo usuário...")
         return create_user_if_none()
     
+    # Fluxo normal se há usuários no sistema
     print("Já existem usuários registrados.")
     choice = input("Deseja fazer login ou criar um novo usuário? (login/criar): ").strip().lower()
     
